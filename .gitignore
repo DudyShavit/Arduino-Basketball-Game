@@ -3,3 +3,13 @@
 ################################################################################
 
 /.vs/basketball/v16/ipch/AutoPCH/5cba5a553278653/.BASKETBALL.VSARDUINO.ipch
+/.vs/basketball/v16/.suo
+/.vs/basketball/v16/Browse.VC.db
+*.opendb
+*.d
+*.o
+/Debug
+/__vm
+/basketball.vcxproj.filters
+*.user
+/.vs/basketball/v16/ipch/AutoPCH/789fa98e190f75c3/BASKETBALL.ipch
