@@ -30,21 +30,25 @@ int BlinkCount = 0;
 unsigned long previousMillis1 = 0;
 unsigned long previousMillis2 = 0;
 unsigned long previousMillis3 = 0;
+//unsigned long previousMillis4 = 0;
 unsigned long hitMillis = 0;
-unsigned long previoushitMillis = 0;
+unsigned long previoushitMillis = millis();
 int TimerInterval = 1000;
-int HitCheckInterval = 80   ;
+int HitCheckInterval = 50   ;
 int BlinkInterval = 500;
+int UpdateScoreInterval = 1000;
 int BlinkTimeout = 5;
 bool GameOver = false;
 bool BlinkVar = false;
+//bool IsHit = false;
+bool IsHitTimerTimeout = false;
 
 //const int num_of_Numbers = 31;
 
 byte IMAGES[][8]=
                       {
-
-                        
+    l';jdk/0. .c'
+                 fs,OVG]       
                        
 
                           {  B00000000,  B01110111,  B01000101,  B01110111,  B00010001,  B01110111,  B00000000,  B00000000},
@@ -287,21 +291,27 @@ void loop()
       if (Hit())// && ((temp > 100) || (temp == 0)))
       {
 
-          previoushitMillis = hitMillis;
+          previoushitMillis = millis();
           hitMillis = millis();
-          unsigned long temp = (previoushitMillis - hitMillis);
+          if (IsHitTimerTimeout)
+          {
+              IsHitTimerTimeout = false;
+              HitCount++;
+          }
+          DisplayHitCount();
+          //unsigned long temp = (previoushitMillis - hitMillis);
           //Serial.println(temp);
-          tryHitCount++;
+          //tryHitCount++;
         //Serial.println("Hit , ");    
        // DegelNafnef();   
      //   Serial.println(temp);
       }
-      if (tryHitCount >= 1)
-      {
-          HitCount++;
+      //if (tryHitCount >= 1)
+      //{
+      //    HitCount++;
           //Serial.println(tryHitCount);
-          tryHitCount = 0;
-      }
+      //    tryHitCount = 0;
+      //}
       DisplayHitCount();   
     
   }
@@ -325,6 +335,11 @@ void loop()
     HitCount = 0;
     TimerCount = 0;
     GameOver = false;
+  }
+
+  if ((millis() - previoushitMillis > UpdateScoreInterval) && !GameOver)
+  {
+      IsHitTimerTimeout = true;      
   }
   
 }
