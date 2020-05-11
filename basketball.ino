@@ -2,7 +2,6 @@
 #include "LedControlMS.h"
 #include <Servo.h>
 
-int pos = 0; 
 /*
  Now we need a LedControl to work with.
  ***** These pin numbers will probably not work with your hardware *****
@@ -20,8 +19,6 @@ LedControl lc=LedControl(12,11,10, NBR_MTX);
 LedControl lc2=LedControl(9,8,7, NBR_MTX);
 
 Servo myservo;
-/* we always wait a bit between updates of the display */
-unsigned long delaytime=100;
 
 int HitCount = 0;
 int tryHitCount = 0;
@@ -30,27 +27,26 @@ int BlinkCount = 0;
 unsigned long previousMillis1 = 0;
 unsigned long previousMillis2 = 0;
 unsigned long previousMillis3 = 0;
-//unsigned long previousMillis4 = 0;
-unsigned long hitMillis = 0;
+unsigned long previousMillis4 = 0;
 unsigned long previoushitMillis = millis();
+unsigned long RestartMillis = 0;
 int TimerInterval = 1000;
 int HitCheckInterval = 50   ;
+int NafNafInterval = 500;
 int BlinkInterval = 500;
 int UpdateScoreInterval = 1000;
+int RestartNoDetectionInterval = 1000;
 int BlinkTimeout = 5;
+int pos = 0;
 bool GameOver = false;
 bool BlinkVar = false;
-//bool IsHit = false;
+bool IsHit = false;
 bool IsHitTimerTimeout = false;
-
-//const int num_of_Numbers = 31;
+bool EngagaeNafnaf = false;
 
 byte IMAGES[][8]=
                       {
-    l';jdk/0. .c'
-                 fs,OVG]       
-                       
-
+   
                           {  B00000000,  B01110111,  B01000101,  B01110111,  B00010001,  B01110111,  B00000000,  B00000000},
                           {  B00000000,  B01110111,  B01000101,  B01110111,  B00010101,  B01110111,  B00000000,  B00000000},
                           {  B00000000,  B01110111,  B01000001,  B01110001,  B00010001,  B01110001,  B00000000,  B00000000},
@@ -114,41 +110,10 @@ byte IMAGES[][8]=
 };                       
 const int num_of_Numbers  = sizeof(IMAGES)/8;              
 
-void setup() 
-{
-  Serial.begin (9600);
-  Serial.println("Setup");
-  pinMode(triggerPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  
-  for (int i=0; i< NBR_MTX; i++)
-  {
-    lc.shutdown(i,false); //true - Sleep  , false -Wake_Up.
-    lc2.shutdown(i,false); //true - Sleep  , false -Wake_Up.
-    
-  /* Set the brightness to a medium values 0-15 */
-    lc.setIntensity(i,8);
-    lc2.setIntensity(i,8);
-    
-  /* and clear the display */
-    lc.clearDisplay(i);
-    lc2.clearDisplay(i);
-  }
-
-  myservo.attach(servoPin);
-}
 
 void DegelNafnef()
 {
-  for (pos = 0; pos <= 359; pos += 1) { // goes from 0 degrees to 180 degrees
-    // in steps of 1 degree
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(1);                       // waits 15ms for the servo to reach the position
-  }
-  for (pos = 359; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
-    myservo.write(pos);              // tell servo to go to position in variable 'pos'
-    delay(1);                       // waits 15ms for the servo to reach the position
-  }
+   // myservo.write(pos);
 }
 /*
  This method will display the characters for the
@@ -177,7 +142,6 @@ for (i1 = num_of_Numbers - 1; i1 > 0; i1--)
     delay(1000); 
   }
 }
-
 float microsecondsToCentimeters(long microseconds){
   // Converte o tempo de microsegundos para segundos
   float seconds = (float) microseconds / 1000000.0;
@@ -192,7 +156,6 @@ float microsecondsToCentimeters(long microseconds){
   
   return distance;
 }
-
 bool Hit()
 {
   bool res = false;
@@ -207,13 +170,6 @@ bool Hit()
   // do sinal e retorna um pulso com esta duração
   long duration = pulseIn(echoPin, HIGH);
 //Serial.println(duration, DEC);
-/*if(duration == 0) // If we timed out
-{
-pinMode(echoPin, OUTPUT); // Then we set echo pin to output mode
-digitalWrite(echoPin, LOW); // We send a LOW pulse to the echo pin
-delayMicroseconds(200);
-pinMode(echoPin, INPUT); // And finaly we come back to input mode
-}*/
 
   // Converte o tempo para distancia em centimetros
   float cm = microsecondsToCentimeters(duration);
@@ -235,7 +191,6 @@ pinMode(echoPin, INPUT); // And finaly we come back to input mode
 
   return res;
 }
-
 void DisplayHitCount()
 {
     for (int j = 0; j< 8; j++)
@@ -243,7 +198,6 @@ void DisplayHitCount()
       lc2.setRow(0,j,IMAGES[num_of_Numbers - 1 - HitCount][j]);
     }
 }
-
 void DisplayTimer ()
 {
   int j;
@@ -263,83 +217,96 @@ delay(1);
 pinMode(resetPin, INPUT);
 digitalWrite(resetPin, LOW);
 }
+
+void setup()
+{
+    RestartMillis = millis();
+    Serial.begin(9600);
+    Serial.println("Setup");
+    pinMode(triggerPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+
+    for (int i = 0; i < NBR_MTX; i++)
+    {
+        lc.shutdown(i, false); //true - Sleep  , false -Wake_Up.
+        lc2.shutdown(i, false); //true - Sleep  , false -Wake_Up.
+
+      /* Set the brightness to a medium values 0-15 */
+        lc.setIntensity(i, 8);
+        lc2.setIntensity(i, 8);
+
+        /* and clear the display */
+        lc.clearDisplay(i);
+        lc2.clearDisplay(i);
+    }
+    myservo.attach(servoPin);
+    DisplayHitCount();
+}
 void loop() 
 { 
+    if (millis() - previousMillis1 > TimerInterval)
+        {
+            // save the last time  
+            previousMillis1 = millis();
+            DisplayTimer();
+            if (GameOver == false)
+                TimerCount++;
+            if (TimerCount == num_of_Numbers - 1)
+            {
+                GameOver = true;
+            }
+            reset_hcsr04();
 
-  if(millis() - previousMillis1 > TimerInterval) 
-  {
-      // save the last time  
-      previousMillis1 = millis();   
-      DisplayTimer();
-      if (GameOver == false)
-        TimerCount ++;
-      if (TimerCount == num_of_Numbers - 1)
-      {
-         GameOver = true;
-      }
-    reset_hcsr04 ();
+        }
+    if ((millis() - RestartMillis > RestartNoDetectionInterval) && 
+        (millis() - previousMillis2 > HitCheckInterval) && !GameOver)
+    {
+        // save the last time  
+        previousMillis2 = millis();
+        if (Hit())
+        {
+            previoushitMillis = millis();
+            EngagaeNafnaf = true;
+            if (IsHitTimerTimeout)
+            {
+                IsHitTimerTimeout = false;
+                HitCount++;
+                DisplayHitCount();
+            }
+        }
+    }
+    if ((millis() - previousMillis3 > BlinkInterval) && GameOver)
+        {
+            // save the last time  
+            previousMillis3 = millis();
+            if (BlinkVar == true)
+                lc2.clearDisplay(0);
+            else
+                DisplayHitCount();
 
-  }
-
-  if( (millis() - previousMillis2 > HitCheckInterval) && !GameOver /*&& (millis() - hitMillis > 1000)*/ )
-  {
-   // if (HitCount == 0)
-   //   hitMillis = millis(); 
-          
-      // save the last time  
-      previousMillis2 = millis();
-      if (Hit())// && ((temp > 100) || (temp == 0)))
-      {
-
-          previoushitMillis = millis();
-          hitMillis = millis();
-          if (IsHitTimerTimeout)
-          {
-              IsHitTimerTimeout = false;
-              HitCount++;
-          }
-          DisplayHitCount();
-          //unsigned long temp = (previoushitMillis - hitMillis);
-          //Serial.println(temp);
-          //tryHitCount++;
-        //Serial.println("Hit , ");    
-       // DegelNafnef();   
-     //   Serial.println(temp);
-      }
-      //if (tryHitCount >= 1)
-      //{
-      //    HitCount++;
-          //Serial.println(tryHitCount);
-      //    tryHitCount = 0;
-      //}
-      DisplayHitCount();   
-    
-  }
-
-  if ((millis() - previousMillis3 > BlinkInterval) && GameOver )
-  {
-      // save the last time  
-      previousMillis3 = millis();   
-      if (BlinkVar == true)
-        lc2.clearDisplay(0);   
-      else
-        DisplayHitCount(); 
-       
-       BlinkVar = !BlinkVar;
-       BlinkCount++;
-  }
-
-  if ( (BlinkCount > 10) )
-  {
-    BlinkCount =0 ;
-    HitCount = 0;
-    TimerCount = 0;
-    GameOver = false;
-  }
-
-  if ((millis() - previoushitMillis > UpdateScoreInterval) && !GameOver)
-  {
-      IsHitTimerTimeout = true;      
-  }
-  
+            BlinkVar = !BlinkVar;
+            BlinkCount++;
+        }
+    if ((BlinkCount > 10))
+        {
+            BlinkCount = 0;
+            HitCount = 0;
+            TimerCount = 0;
+            GameOver = false;
+        }
+    if ((millis() - previoushitMillis > UpdateScoreInterval) && !GameOver)
+        {
+            IsHitTimerTimeout = true;
+            pos = 0;
+            DegelNafnef();
+            EngagaeNafnaf = false;
+        }
+    if ((millis() - previoushitMillis < UpdateScoreInterval) &&
+        (millis() - previousMillis4 > NafNafInterval) && EngagaeNafnaf &&
+        !GameOver) {
+         // save the last time  
+         previousMillis4 = millis();
+         pos = 180;
+         DegelNafnef();
+        }
 }
