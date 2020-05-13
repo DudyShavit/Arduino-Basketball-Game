@@ -1,49 +1,35 @@
-//We always have to include the library
 #include "LedControlMS.h"
-#include <Servo.h>
-
 /*
- Now we need a LedControl to work with.
- ***** These pin numbers will probably not work with your hardware *****
- pin 12 is connected to the DataIn 
- pin 11 is connected to the CLK 
- pin 10 is connected to LOAD 
- We have only a single MAX72XX.
+  Analog input, analog output, serial output
+
+ Reads an analog input pin, maps the result to a range from 0 to 255
+ and uses the result to set the pulsewidth modulation (PWM) of an output pin.
+ Also prints the results to the serial monitor.
+
+ The circuit:
+ * potentiometer connected to analog pin 0.
+   Center pin of the potentiometer goes to the analog pin.
+   side pins of the potentiometer go to +5V and ground
+ * LED connected from digital pin 9 to ground
+
+ created 29 Dec. 2008
+ modified 9 Apr 2012
+ by Tom Igoe
+
+ This example code is in the public domain.
+
  */
-#define NBR_MTX 1 //Number of matrix connected.
-#define triggerPin 5
-#define echoPin 6
-#define servoPin 4
+LedControl lc=LedControl(12,11,10, 1);
 
-LedControl lc=LedControl(12,11,10, NBR_MTX);
-LedControl lc2=LedControl(9,8,7, NBR_MTX);
+// These constants won't change.  They're used to give names
+// to the pins used:
+const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
+const int analogOutPin = 9; // Analog output pin that the LED is attached to
 
-Servo myservo;
+int sensorValue = 0;        // value read from the pot
+int outputValue = 0;        // value output to the PWM (analog out)
 
-int HitCount = 0;
-int tryHitCount = 0;
-int TimerCount = 0;
-int BlinkCount = 0;
-unsigned long previousMillis1 = 0;
-unsigned long previousMillis2 = 0;
-unsigned long previousMillis3 = 0;
-unsigned long previousMillis4 = 0;
-unsigned long previoushitMillis = millis();
-unsigned long RestartMillis = 0;
-int TimerInterval = 1000;
-int HitCheckInterval = 50   ;
-int NafNafInterval = 1500;
-int BlinkInterval = 500;
-int UpdateScoreInterval = 50;
-int RestartNoDetectionInterval = 1000;
-int BlinkTimeout = 5;
-int pos = 0;
-bool GameOver = false;
-bool BlinkVar = false;
-bool IsHit = false;
-bool IsHitTimerTimeout = false;
-bool IsHitProcess = false;
-
+int CelziusCount = 0;
 byte IMAGES[][8]=
                       {
    
@@ -108,219 +94,52 @@ byte IMAGES[][8]=
                         { B00000000, B11100010, B10100110, B10100010, B10100010, B11100111, B00000000, B00000000},
                         { B00000000, B11100111, B10100101, B10100101, B10100101, B11100111, B00000000, B00000000}
 };                       
-const int num_of_Numbers  = sizeof(IMAGES)/8;              
+const int num_of_Numbers  = sizeof(IMAGES)/8;       
 
-
-void DegelNafnef(int position)
+void setup() 
 {
-    Serial.println(position);
-    myservo.write(position);
-    delay(300);
+  // initialize serial communications at 9600 bps:
+  Serial.begin(9600);
+  lc.shutdown(0, false); //true - Sleep  , false -Wake_Up.
+        
+  /* Set the brightness to a medium values 0-15 */
+  lc.setIntensity(0, 8);
+        
+  /* and clear the display */
+  lc.clearDisplay(0);   
 }
-/*
- This method will display the characters for the
- word "Arduino" one after the other on the matrix. 
- (you need at least 5x7 leds to see the whole chars)
- */
-void writeArduinoOnMatrix() {
- 
-
-  int i1, j2;
-  for (i1 = 0; i1< num_of_Numbers; i1++)
-  {
-    for (j2 = 0; j2< 8; j2++)
-    {
-      lc.setRow(0,j2,IMAGES[i1][j2]);
-    }
-    delay(1000); 
-  }
-
-for (i1 = num_of_Numbers - 1; i1 > 0; i1--)
-  {
-    for (j2 = 0; j2< 8; j2++)
-    {
-      lc.setRow(0,j2,IMAGES[i1][j2]);
-    }
-    delay(1000); 
-  }
-}
-float microsecondsToCentimeters(long microseconds){
-  // Converte o tempo de microsegundos para segundos
-  float seconds = (float) microseconds / 1000000.0;
-  // Com a velocidade do som de 340m/s calcula-se a
-  // distancia percorrida
-  float distance = seconds * 340;
-  // Divide o resultado por dois pois o tempo é calculado
-  // considerando a ida e a volta do sinal  
-  distance = distance / 2;
-  // Converte o resultado em metros para centimetros
-  distance = distance * 100;
-  
-  return distance;
-}
-bool Hit()
-{
-  bool res = false;
-
-   digitalWrite(triggerPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(triggerPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(triggerPin, LOW);
-
-  // O sensor calcula o tempo gasto entre o envio e o recebimento
-  // do sinal e retorna um pulso com esta duração
-  long duration = pulseIn(echoPin, HIGH);
-//Serial.println(duration, DEC);
-
-  // Converte o tempo para distancia em centimetros
-  float cm = microsecondsToCentimeters(duration);
-  
-  // Informa a distancia na serial
-  //Serial.println(cm, DEC);
-  
-  if (cm < 50)
-   
-    
-        if (cm >= 8 && cm <= 40)
-        {    
-          //Serial.println(cm, DEC);
-          Serial.println(HitCount);
-          res = true;
-        }
-      
-      
-
-  return res;
-}
-void DisplayHitCount()
-{
-    for (int j = 0; j< 8; j++)
-    {
-      lc2.setRow(0,j,IMAGES[num_of_Numbers - 1 - HitCount][j]);
-    }
-}
-void DisplayTimer ()
+void DisplayTemp ()
 {
   int j;
  
     for (j = 0; j< 8; j++)
     {
-      lc.setRow(0,j,IMAGES[TimerCount][j]);
+      lc.setRow(0,j,IMAGES[CelziusCount][j]);
     }
 }
-#define resetPin 6 /* D3 to C9 */
-void reset_hcsr04 () {
-pinMode(resetPin, OUTPUT);
-digitalWrite(resetPin, LOW);
-delay(1);
-pinMode(resetPin, INPUT);
-digitalWrite(resetPin, LOW);
-}
-void setup()
-{
-    RestartMillis = millis();
-    Serial.begin(9600);
-    Serial.println("Setup");
-    pinMode(triggerPin, OUTPUT);
-    pinMode(echoPin, INPUT);
+void loop() {
 
-    for (int i = 0; i < NBR_MTX; i++)
-    {
-        lc.shutdown(i, false); //true - Sleep  , false -Wake_Up.
-        lc2.shutdown(i, false); //true - Sleep  , false -Wake_Up.
+  double temperature;
+  double digital;
 
-      /* Set the brightness to a medium values 0-15 */
-        lc.setIntensity(i, 8);
-        lc2.setIntensity(i, 8);
+  analogReference(INTERNAL);
+  
+  // read the analog in value:
+  digital = analogRead(analogInPin);
 
-        /* and clear the display */
-        lc.clearDisplay(i);
-        lc2.clearDisplay(i);
-    }
-    myservo.attach(servoPin);
-    DisplayHitCount();
-}
-void loop() 
-{ 
-    if (millis() - previousMillis1 > TimerInterval)
-        {
-            // save the last time  
-            previousMillis1 = millis();
-            DisplayTimer();
-            if (GameOver == false)
-                TimerCount++;
-            if (TimerCount == num_of_Numbers - 1)
-            {
-                GameOver = true;
-            }
-            reset_hcsr04();
+  temperature = digital * 110 / 1023;
 
-        }
-    if ((millis() - RestartMillis > RestartNoDetectionInterval) && 
-        (millis() - previousMillis2 > HitCheckInterval) && !GameOver)
-    {
-        // save the last time  
-        previousMillis2 = millis();
-        if (Hit())
-        {
-            previoushitMillis = millis();
-            IsHitProcess = true;
-            if (IsHitTimerTimeout)
-            {
-                IsHitTimerTimeout = false;
-                HitCount++;
-                DisplayHitCount();
-            }
-        }
-    }
-    if ((millis() - previousMillis3 > BlinkInterval) && GameOver)
-        {
-            // save the last time  
-            previousMillis3 = millis();
-            if (BlinkVar == true)
-                lc2.clearDisplay(0);
-            else
-                DisplayHitCount();
-
-            BlinkVar = !BlinkVar;
-            BlinkCount++;
-        }
-    if ((BlinkCount > 10))
-        {
-            BlinkCount = 0;
-            HitCount = 0;
-            TimerCount = 0;
-            GameOver = false;
-        }
-    if ((millis() - previoushitMillis > UpdateScoreInterval) && IsHitProcess && !GameOver)
-        {
-            IsHitTimerTimeout = true;
-           // pos = 0;
-         //   delay(20);
-         //   reset_hcsr04();
-         //   Serial.println(pos);
-         //   myservo.write(pos);
-            
-            //DegelNafnef();
-            IsHitProcess = false;
-        }
-    if ((millis() - previoushitMillis < UpdateScoreInterval) &&
-        (millis() - previousMillis4 > NafNafInterval) && IsHitProcess &&
-        !GameOver) {
-         // save the last time  
-         previousMillis4 = millis();
-         //pos = 180;
-         //Serial.println(pos);
-         //if (pos = 180)
-         //   pos = pos * -1;
-         DegelNafnef(180);
-         DegelNafnef(0);
-         DegelNafnef(180);
-         DegelNafnef(0);
-         //myservo.write(180);
-         //myservo.write(180);
-         //reset_hcsr04();
-         //DegelNafnef();
-        }
+  // print the results to the serial monitor:
+  Serial.print("digital = ");
+  Serial.print(digital);
+  Serial.print("\t temp = ");
+  Serial.println(temperature);
+  
+  
+  CelziusCount = num_of_Numbers - temperature;
+  DisplayTemp ();
+  // wait 2 milliseconds before the next loop
+  // for the analog-to-digital converter to settle
+  // after the last reading:
+  delay(10000);
 }
