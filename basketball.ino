@@ -14,6 +14,8 @@
 #define triggerPin 5
 #define echoPin 6
 #define servoPin 4
+#define analogInPin A0
+#define resetPin 6 /* D3 to C9 */
 
 LedControl lc=LedControl(12,11,10, NBR_MTX);
 LedControl lc2=LedControl(9,8,7, NBR_MTX);
@@ -28,6 +30,7 @@ unsigned long previousMillis1 = 0;
 unsigned long previousMillis2 = 0;
 unsigned long previousMillis3 = 0;
 unsigned long previousMillis4 = 0;
+unsigned long previousMillis5 = 0;
 unsigned long previoushitMillis = millis();
 unsigned long RestartMillis = 0;
 int TimerInterval = 1000;
@@ -37,7 +40,8 @@ int BlinkInterval = 500;
 int UpdateScoreInterval = 50;
 int RestartNoDetectionInterval = 1000;
 int BlinkTimeout = 5;
-int pos = 0;
+int checkTemeratueInterval = 20000;
+int CelziusCount = 0;
 bool GameOver = false;
 bool BlinkVar = false;
 bool IsHit = false;
@@ -111,10 +115,13 @@ byte IMAGES[][8]=
 const int num_of_Numbers  = sizeof(IMAGES)/8;              
 
 
-void DegelNafnef(int position)
+void DegelNafnef()
 {
-    Serial.println(position);
-    myservo.write(position);
+    Serial.println(180);
+    myservo.write(180);
+    delay(300);
+    Serial.println(0);
+    myservo.write(0);
     delay(300);
 }
 /*
@@ -209,7 +216,38 @@ void DisplayTimer ()
       lc.setRow(0,j,IMAGES[TimerCount][j]);
     }
 }
-#define resetPin 6 /* D3 to C9 */
+void CheckTemperature()
+{
+    double temperature;
+    double digital;
+
+    analogReference(INTERNAL);
+
+    // read the analog in value:
+    digital = analogRead(analogInPin);
+
+    temperature = digital * 110 / 1023;
+
+    // print the results to the serial monitor:
+    Serial.print("digital = ");
+    Serial.print(digital);
+    Serial.print("\t temp = ");
+    Serial.println(temperature);
+    
+    if ((temperature > -5 ) && (temperature < 50))
+        CelziusCount = num_of_Numbers - temperature;
+
+    analogReference(DEFAULT);
+}
+void DisplayTemperature()
+{
+    int j;
+
+    for (j = 0; j < 8; j++)
+    {
+        lc.setRow(0, j, IMAGES[CelziusCount][j]);
+    }
+}
 void reset_hcsr04 () {
 pinMode(resetPin, OUTPUT);
 digitalWrite(resetPin, LOW);
@@ -240,6 +278,9 @@ void setup()
     }
     myservo.attach(servoPin);
     DisplayHitCount();
+    CheckTemperature();
+    DisplayTemperature();
+    delay(2000);
 }
 void loop() 
 { 
@@ -292,6 +333,9 @@ void loop()
             HitCount = 0;
             TimerCount = 0;
             GameOver = false;
+            CheckTemperature();
+            DisplayTemperature();
+            delay(2000);
         }
     if ((millis() - previoushitMillis > UpdateScoreInterval) && IsHitProcess && !GameOver)
         {
@@ -306,21 +350,15 @@ void loop()
             IsHitProcess = false;
         }
     if ((millis() - previoushitMillis < UpdateScoreInterval) &&
-        (millis() - previousMillis4 > NafNafInterval) && IsHitProcess &&
-        !GameOver) {
-         // save the last time  
-         previousMillis4 = millis();
-         //pos = 180;
-         //Serial.println(pos);
-         //if (pos = 180)
-         //   pos = pos * -1;
-         DegelNafnef(180);
-         DegelNafnef(0);
-         DegelNafnef(180);
-         DegelNafnef(0);
-         //myservo.write(180);
-         //myservo.write(180);
-         //reset_hcsr04();
-         //DegelNafnef();
+        (millis() - previousMillis4 > NafNafInterval) && IsHitProcess &&!GameOver)
+        {
+             // save the last time  
+             previousMillis4 = millis();
+             DegelNafnef();
         }
+    if (millis() - previousMillis5 > checkTemeratueInterval)
+    {
+        previousMillis5 = millis();
+        CheckTemperature();
+    }
 }

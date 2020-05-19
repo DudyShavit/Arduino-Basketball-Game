@@ -1,4 +1,4 @@
-#include "LedControlMS.h"
+ #include "LedControlMS.h"
 /*
   Analog input, analog output, serial output
 
@@ -119,24 +119,6 @@ void DisplayTemp ()
 }
 void loop() {
 
-  double temperature;
-  double digital;
-
-  analogReference(INTERNAL);
-  
-  // read the analog in value:
-  digital = analogRead(analogInPin);
-
-  temperature = digital * 110 / 1023;
-
-  // print the results to the serial monitor:
-  Serial.print("digital = ");
-  Serial.print(digital);
-  Serial.print("\t temp = ");
-  Serial.println(temperature);
-  
-  
-  CelziusCount = num_of_Numbers - temperature;
   DisplayTemp ();
   // wait 2 milliseconds before the next loop
   // for the analog-to-digital converter to settle
